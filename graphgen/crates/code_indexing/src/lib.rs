@@ -157,4 +157,15 @@ mod tests {
         let res = indexing.parse_ts(&"../../tests/test0.ts".to_string());
         assert!(res.is_ok());
     }
+
+    #[test]
+    fn test_load() {
+        let mut indexing = CodeIndex::new();
+        let res = indexing.parse_ts(&"../../tests/test0.ts".to_string());
+        assert!(res.is_ok());
+        let datafile = "/tmp/code_index.bin".to_string();
+        indexing.into_file(&datafile);
+        let load_indexing = CodeIndex::load(&datafile);
+        assert_eq!(load_indexing.edges.len(), indexing.edges.len());
+    }
 }
