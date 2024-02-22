@@ -108,7 +108,7 @@ impl CodeIndex {
         bincode::serialize_into(file, self).unwrap();
     }
 
-    pub fn parse_ts(&mut self, filename: &String) -> Result<(), std::io::Error> {
+    pub fn parse_file(&mut self, filename: &String) -> Result<(), std::io::Error> {
         let content = std::fs::read_to_string(filename)?;
         let mut parser = Parser::new();
         parser
@@ -129,12 +129,12 @@ impl CodeIndex {
         let clsname = str_by_field_name(node, "name", &content).unwrap_or("".to_string());
         let clsdot = clsname.clone() + ".";
         for method in methods {
-            let caller = format!(
-                "{}.{}",
-                clsname,
-                str_by_field_name(method, "name", &content).unwrap_or("Nil".to_string())
+            let sig = Signature::new(
+                clsname.clone(),
+                str_by_field_name(method, "name", &content).unwrap_or("Nil".to_string()),
             );
-
+            self.add_function(&sig);
+            let caller = sig.str();
             let calls = walk_collect(method, "call_expression");
             for call in calls {
                 if let Some(callee) = str_by_field_name(call, "function", &content) {
@@ -154,14 +154,14 @@ mod tests {
     #[test]
     fn test_parse() {
         let mut indexing = CodeIndex::new();
-        let res = indexing.parse_ts(&"../../tests/test0.ts".to_string());
+        let res = indexing.parse_file(&"../../tests/test0.ts".to_string());
         assert!(res.is_ok());
     }
 
     #[test]
     fn test_load() {
         let mut indexing = CodeIndex::new();
-        let res = indexing.parse_ts(&"../../tests/test0.ts".to_string());
+        let res = indexing.parse_file(&"../../tests/test0.ts".to_string());
         assert!(res.is_ok());
         let datafile = "/tmp/code_index.bin".to_string();
         indexing.into_file(&datafile);
