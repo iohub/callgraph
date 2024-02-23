@@ -1,22 +1,6 @@
-workspace = { members = ["crates/code_indexing", "crates/graphgen"] }
-[package]
-name = "callgraph"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = [
+    "crates/*",  
+]
 
 default-members = ["crates/graphgen"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[[bin]]
-name = "graphgen"
-path = "crates/graphgen/src/main.rs"
-
-[dependencies]
-clap = "4.5.1"
-tide = "0.16.0"
-async-std = { version = "1.8.0", features = ["attributes"] }
-serde = { version = "1.0", features = ["derive"] }
-env_logger = "0.11.2"
-log = "0.4"
-

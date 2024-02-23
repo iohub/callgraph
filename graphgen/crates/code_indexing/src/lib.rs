@@ -72,7 +72,7 @@ impl Function {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct CodeIndex {
+pub struct CodeIndex {
     edges: BTreeMap<u64, Vec<u64>>,
     functions: BTreeMap<String, Function>,
     classes: BTreeMap<String, Class>,

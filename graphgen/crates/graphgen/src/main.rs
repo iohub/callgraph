@@ -7,6 +7,7 @@ use log;
 use serde::Deserialize;
 use tide::prelude::*;
 use tide::Request;
+use code_indexing::CodeIndex;
 
 #[derive(Debug, Deserialize)]
 struct ParseFileReq {
@@ -31,6 +32,9 @@ async fn main() -> tide::Result<()> {
 
 async fn api_parse_file(mut req: Request<()>) -> tide::Result {
     let ParseFileReq { file } = req.body_json().await?;
+    let mut indexing = CodeIndex::new();
+    indexing.parse_file(&file);
+    
     Ok(json!({
         "code": 200,
         "message": "success"
