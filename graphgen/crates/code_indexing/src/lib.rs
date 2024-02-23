@@ -3,6 +3,7 @@ mod misc;
 extern crate serde;
 
 use bincode;
+use log::info;
 use misc::*;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -151,6 +152,7 @@ impl CodeIndex {
         };
 
         if let Some(declaration) = substr(content, node.start_byte(), end_byte) {
+            info!("[class] {}", declaration);
             self.add_class(&Class {
                 name: clsname.clone(),
                 declaration: declaration,
@@ -179,9 +181,11 @@ impl CodeIndex {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use env_logger;
 
     #[test]
     fn test_parse() {
+        env_logger::init();
         let mut indexing = CodeIndex::new();
         let res = indexing.parse_file(&"../../tests/test0.ts".to_string());
         assert!(res.is_ok());
