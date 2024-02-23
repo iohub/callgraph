@@ -74,6 +74,7 @@ impl Function {
 struct CodeIndex {
     edges: BTreeMap<u64, Vec<u64>>,
     functions: BTreeMap<String, Function>,
+    classes: BTreeMap<String, Class>,
     id_gen: IDGenerator,
 }
 
@@ -82,6 +83,7 @@ impl CodeIndex {
         CodeIndex {
             edges: BTreeMap::new(),
             functions: BTreeMap::new(),
+            classes: BTreeMap::new(),
             id_gen: IDGenerator::new(),
         }
     }
@@ -94,10 +96,16 @@ impl CodeIndex {
         data
     }
 
-    fn add_function(&mut self, sig: &Function) {
+    fn add_function(&mut self, func: &Function) {
         self.functions
-            .entry(sig.str())
-            .or_insert_with(|| sig.clone());
+            .entry(func.str())
+            .or_insert_with(|| func.clone());
+    }
+
+    fn add_class(&mut self, cls: &Class) {
+        self.classes
+            .entry(cls.name.clone())
+            .or_insert_with(|| cls.clone());
     }
 
     fn add_edge(&mut self, from: &String, to: &String) {
@@ -133,9 +141,22 @@ impl CodeIndex {
     }
 
     fn parse_class_declaration<'a>(&mut self, node: Node<'a>, content: &String) {
-        let methods = walk_collect(node, "method_definition");
         let clsname = str_by_field_name(node, "name", &content).unwrap_or("".to_string());
         let clsdot = clsname.clone() + ".";
+        let methods = walk_collect(node, "method_definition");
+        let end_byte = if let Some(first) = methods.first() {
+            first.start_byte()
+        } else {
+            node.end_byte()
+        };
+
+        if let Some(declaration) = substr(content, node.start_byte(), end_byte) {
+            self.add_class(&Class {
+                name: clsname.clone(),
+                declaration: declaration,
+            });
+        }
+
         for method in methods {
             let sig = Function::new(
                 clsname.clone(),
@@ -164,6 +185,7 @@ mod tests {
         let mut indexing = CodeIndex::new();
         let res = indexing.parse_file(&"../../tests/test0.ts".to_string());
         assert!(res.is_ok());
+        assert!(indexing.classes.get("Parser").is_some());
     }
 
     #[test]

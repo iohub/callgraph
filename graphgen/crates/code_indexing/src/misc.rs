@@ -1,5 +1,10 @@
 use tree_sitter::Node;
 
+pub(crate) fn substr(content: &String, start_byte: usize, end_byte: usize) -> Option<String> {
+    let bytes = content.as_bytes();
+    String::from_utf8(bytes[start_byte..end_byte].to_vec()).ok()
+}
+
 pub(crate) fn str_by_field_name<'a>(
     node: Node<'a>,
     field: &str,
