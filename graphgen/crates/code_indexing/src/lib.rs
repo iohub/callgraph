@@ -160,10 +160,11 @@ impl CodeIndex {
         }
 
         for method in methods {
-            let sig = Function::new(
-                clsname.clone(),
-                str_by_field_name(method, "name", &content).unwrap_or("Nil".to_string()),
-            );
+            let sig = Function {
+                name: str_by_field_name(method, "name", &content).unwrap(),
+                pkg: clsname.clone(),
+                body: str_by_field_name(method, "body", &content).unwrap(),
+            };
             self.add_function(&sig);
             let caller = sig.str();
             let calls = walk_collect(method, "call_expression");
