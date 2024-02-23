@@ -42,13 +42,19 @@ impl IDGenerator {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct Signature {
+struct Class {
+    name: String,
+    declaration: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct Function {
     name: String,
     pkg: String,
     body: String,
 }
 
-impl Signature {
+impl Function {
     pub fn str(&self) -> String {
         if self.pkg == "" {
             return self.name.clone();
@@ -56,7 +62,7 @@ impl Signature {
         format!("{}.{}", self.pkg, self.name)
     }
     pub fn new(name: String, pkg: String) -> Self {
-        Signature {
+        Function {
             name: name,
             pkg: pkg,
             body: "".to_string(),
@@ -67,7 +73,7 @@ impl Signature {
 #[derive(Serialize, Deserialize, Debug)]
 struct CodeIndex {
     edges: BTreeMap<u64, Vec<u64>>,
-    signatures: BTreeMap<String, Signature>,
+    functions: BTreeMap<String, Function>,
     id_gen: IDGenerator,
 }
 
@@ -75,7 +81,7 @@ impl CodeIndex {
     pub fn new() -> Self {
         CodeIndex {
             edges: BTreeMap::new(),
-            signatures: BTreeMap::new(),
+            functions: BTreeMap::new(),
             id_gen: IDGenerator::new(),
         }
     }
@@ -88,8 +94,10 @@ impl CodeIndex {
         data
     }
 
-    fn add_function(&mut self, sig: &Signature) {
-        self.signatures.insert(sig.str(), sig.clone());
+    fn add_function(&mut self, sig: &Function) {
+        self.functions
+            .entry(sig.str())
+            .or_insert_with(|| sig.clone());
     }
 
     fn add_edge(&mut self, from: &String, to: &String) {
@@ -129,7 +137,7 @@ impl CodeIndex {
         let clsname = str_by_field_name(node, "name", &content).unwrap_or("".to_string());
         let clsdot = clsname.clone() + ".";
         for method in methods {
-            let sig = Signature::new(
+            let sig = Function::new(
                 clsname.clone(),
                 str_by_field_name(method, "name", &content).unwrap_or("Nil".to_string()),
             );
