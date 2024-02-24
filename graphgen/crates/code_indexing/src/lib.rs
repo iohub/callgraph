@@ -1,8 +1,10 @@
+mod graph;
 mod misc;
 
 extern crate serde;
 
 use bincode;
+use graph::*;
 use log::info;
 use misc::*;
 use serde::{Deserialize, Serialize};
@@ -118,6 +120,10 @@ impl CodeIndex {
                 self.edges.insert(from_id, vec![to_id]);
             }
         }
+    }
+
+    pub fn serde_tree(&mut self, funcname: &String) -> Option<GraphNode> {
+        None
     }
 
     pub fn into_file(&self, filename: &String) {
