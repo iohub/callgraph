@@ -1,15 +1,41 @@
+use std::mem::MaybeUninit;
+use std::sync::{Mutex, Once};
+
 use clap::{Arg, Command};
 
 use code_indexing::CodeIndex;
 use env_logger;
+use lazy_static::lazy_static;
 use log;
 use serde::Deserialize;
 use tide::prelude::*;
 use tide::Request;
 
+struct GlobalSingleton {
+    code_index: CodeIndex,
+}
+
+lazy_static! {
+    static ref CONTEXT: Mutex<GlobalSingleton> = Mutex::new(GlobalSingleton {
+        code_index: CodeIndex::new(),
+    });
+}
+
 #[derive(Debug, Deserialize)]
 struct ParseFileReq {
     file: String,
+    load: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct LoadCodeIndexReq {
+    file: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct CallGraphRenderReq {
+    function: String,
+    depth: i32,
 }
 
 #[async_std::main]
@@ -24,20 +50,27 @@ async fn main() -> tide::Result<()> {
 
     let mut app = tide::new();
     app.at("/codeindex/parse/file").post(api_parse_file);
+    app.at("/codeindex/load").post(api_load_codeindex);
+    app.at("/callgraph/render").post(api_render_callgraph);
     app.listen(addr).await?;
     Ok(())
 }
 
 async fn api_parse_file(mut req: Request<()>) -> tide::Result {
-    let ParseFileReq { file } = req.body_json().await?;
+    let ParseFileReq { file, load } = req.body_json().await?;
     let mut indexing = CodeIndex::new();
     match indexing.parse_file(&file) {
-        Ok(_) => Ok(json!({
-            "code": 200,
-            "message": "success",
-            "data": indexing,
-        })
-        .into()),
+        Ok(_) => {
+            if load {
+                CONTEXT.lock().unwrap().code_index = indexing.clone();
+            }
+            Ok(json!({
+                "code": 200,
+                "message": "success",
+                "data": indexing,
+            })
+            .into())
+        }
         Err(e) => Ok(json!({
             "code": 5001,
             "message": format!("{} Failed to parse file", e.to_string())
@@ -46,6 +79,40 @@ async fn api_parse_file(mut req: Request<()>) -> tide::Result {
     }
 }
 
+async fn api_load_codeindex(mut req: Request<()>) -> tide::Result {
+    let LoadCodeIndexReq { file } = req.body_json().await?;
+    Ok(json!({
+        "code": 200,
+        "message": "success",
+    })
+    .into())
+}
+
+async fn api_render_callgraph(mut req: Request<()>) -> tide::Result {
+    let CallGraphRenderReq { function, depth } = req.body_json().await?;
+    let result = CONTEXT
+        .lock()
+        .unwrap()
+        .code_index
+        .serde_tree(&function, depth);
+    match result {
+        None => Ok(json!({
+            "code": 300,
+            "message": "no graph generated"
+        })
+        .into()),
+        Some(graph) => Ok(json!({
+            "code": 200,
+            "message": "success",
+            "data": graph,
+        })
+        .into()),
+    }
+}
+
+///
+/// html templates
+///
 fn echart_tree_template() -> String {
     let template = r#"
     <!DOCTYPE html>

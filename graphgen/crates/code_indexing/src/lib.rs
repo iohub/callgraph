@@ -14,7 +14,7 @@ use tree_sitter::Node;
 use tree_sitter::Parser;
 use tree_sitter_typescript;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct IDGenerator {
     id_map: BTreeMap<String, u64>,
     name_map: BTreeMap<u64, String>,
@@ -73,12 +73,12 @@ impl Function {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CodeIndex {
     edges: BTreeMap<u64, Vec<u64>>,
     functions: BTreeMap<String, Function>,
     classes: BTreeMap<String, Class>,
-    id_gen: IDGenerator,
+    pub(crate) id_gen: IDGenerator,
 }
 
 impl CodeIndex {
@@ -122,8 +122,30 @@ impl CodeIndex {
         }
     }
 
-    pub fn serde_tree(&mut self, funcname: &String) -> Option<GraphNode> {
-        None
+    pub fn serde_tree(&mut self, funcname: &String, depth: i32) -> Option<GraphNode> {
+        let id = self.id_gen.id(funcname);
+        self._serde_tree_helper(id, depth)
+    }
+
+    fn _serde_tree_helper(&self, id: u64, depth: i32) -> Option<GraphNode> {
+        if depth == 0 {
+            return None;
+        }
+        let mut children = vec![];
+        let mut value = 0;
+        if let Some(outv) = self.edges.get(&id) {
+            value = outv.len();
+            for out in outv.iter() {
+                if let Some(child) = self._serde_tree_helper(*out, depth - 1) {
+                    children.push(child);
+                }
+            }
+        }
+        Some(GraphNode {
+            name: self.id_gen.name(id).unwrap_or(&"nil".to_string()).clone(),
+            children: children,
+            value: value + 10,
+        })
     }
 
     pub fn into_file(&self, filename: &String) {
