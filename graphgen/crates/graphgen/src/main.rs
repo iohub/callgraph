@@ -8,8 +8,9 @@ use env_logger;
 use lazy_static::lazy_static;
 use log;
 use serde::Deserialize;
+use serde_json;
 use tide::prelude::*;
-use tide::Request;
+use tide::{Request, Response, StatusCode};
 
 struct GlobalSingleton {
     code_index: CodeIndex,
@@ -51,7 +52,8 @@ async fn main() -> tide::Result<()> {
     let mut app = tide::new();
     app.at("/codeindex/parse/file").post(api_parse_file);
     app.at("/codeindex/load").post(api_load_codeindex);
-    app.at("/callgraph/render").post(api_render_callgraph);
+    app.at("/callgraph/json").post(api_callgraph_json);
+    app.at("/callgraph/html").get(api_callgraph_html);
     app.listen(addr).await?;
     Ok(())
 }
@@ -88,7 +90,7 @@ async fn api_load_codeindex(mut req: Request<()>) -> tide::Result {
     .into())
 }
 
-async fn api_render_callgraph(mut req: Request<()>) -> tide::Result {
+async fn api_callgraph_json(mut req: Request<()>) -> tide::Result {
     let CallGraphRenderReq { function, depth } = req.body_json().await?;
     let result = CONTEXT
         .lock()
@@ -110,6 +112,26 @@ async fn api_render_callgraph(mut req: Request<()>) -> tide::Result {
     }
 }
 
+async fn api_callgraph_html(mut req: Request<()>) -> tide::Result {
+    let CallGraphRenderReq { function, depth } = req.query()?;
+    let result = CONTEXT
+        .lock()
+        .unwrap()
+        .code_index
+        .serde_tree(&function, depth);
+
+    let data = match result {
+        Some(graph) => serde_json::to_string(&graph).unwrap_or("{}".to_string()),
+        None => "{}".to_string(),
+    };
+
+    let html_content = echart_tree_template().replace("${data}$", &data);
+    let mut res = Response::new(StatusCode::Ok);
+    res.set_body(html_content);
+    res.set_content_type(tide::http::mime::HTML);
+    Ok(res)
+}
+
 ///
 /// html templates
 ///
@@ -127,43 +149,43 @@ fn echart_tree_template() -> String {
         <div id="f20333b98be84c3497bdb4b930129314" class="chart-container" style="width:1200px; height:1000px; "></div>
         <script>
             var chart = echarts.init(
-                document.getElementById('f20333b98be84c3497bdb4b930129314'), 'white', {{ renderer: 'canvas' }});
-            var option = {{
-                tooltip: {{
+                document.getElementById('f20333b98be84c3497bdb4b930129314'), 'white', { renderer: 'canvas' });
+            var option = {
+                tooltip: {
                     trigger: 'item',
                     triggerOn: 'mousemove'
-                }},
+                },
             series: [
-                {{
+                {
                     type: 'tree',
-                    data: ${data}$,
+                    data: [${data}$],
                     top: '1%',
                     left: '7%',
                     bottom: '1%',
                     right: '20%',
                     symbolSize: 7,
-                    label: {{
+                    label: {
                         position: 'left',
                         verticalAlign: 'middle',
                         align: 'right',
                         fontSize: 9
-                     }},
-                leaves: {{
-                    label: {{
+                     },
+                leaves: {
+                    label: {
                         position: 'right',
                         verticalAlign: 'middle',
                         align: 'left'
-                    }}
-                }},
-                emphasis: {{
+                    }
+                },
+                emphasis: {
                     focus: 'descendant'
-                }},
+                },
                 expandAndCollapse: true,
                 animationDuration: 550,
                 animationDurationUpdate: 750
-            }}
+            }
             ]
-            }};
+            };
             chart.setOption(option);
         </script>
     </body>
