@@ -144,7 +144,7 @@ impl CodeIndex {
         Some(GraphNode {
             name: self.id_gen.name(id).unwrap_or(&"nil".to_string()).clone(),
             children: children,
-            value: value + 10,
+            value: value,
         })
     }
 
@@ -223,7 +223,6 @@ impl CodeIndex {
             let calls = walk_collect(method, "call_expression");
             for call in calls {
                 if let Some(callee) = str_by_field_name(call, "function", &content) {
-                    // println!("{} -> {}", caller, callee.replace("this.", &clsdot));
                     let _callee = callee.replace("this.", &clsdot);
                     self.add_edge(&caller, &_callee);
                 }

@@ -145,7 +145,7 @@ fn echart_tree_template() -> String {
     </head>
     
     <body>
-        <div id="f20333b98be84c3497bdb4b930129314" class="chart-container" style="width:1200px; height:1000px; "></div>
+        <div id="f20333b98be84c3497bdb4b930129314" class="chart-container" style="width: 80vw; height:1000px; "></div>
         <script>
             var chart = echarts.init(
                 document.getElementById('f20333b98be84c3497bdb4b930129314'), 'white', { renderer: 'canvas' });
@@ -164,25 +164,39 @@ fn echart_tree_template() -> String {
                     right: '20%',
                     symbolSize: 7,
                     label: {
-                        position: 'left',
+                        position: 'inside',
                         verticalAlign: 'middle',
-                        align: 'right',
-                        fontSize: 9
-                     },
-                leaves: {
-                    label: {
-                        position: 'right',
-                        verticalAlign: 'middle',
-                        align: 'left'
-                    }
-                },
-                emphasis: {
-                    focus: 'descendant'
-                },
-                expandAndCollapse: true,
-                animationDuration: 550,
-                animationDurationUpdate: 750
-            }
+                        align: 'center',
+                        formatter: function(params) { 
+                            return '{b|' + params.data.name + ' (' + params.data.value + ')' + '}';
+                        },
+                        fontSize: 16,
+                        rich: { 
+                            b: {
+                                backgroundColor: '#eee',
+                                width:  320,
+                                height:  32,
+                                align: 'center',
+                                borderRadius:  4,
+                                fontSize: 16,
+                                color: '#333'
+                            }
+                        }
+                    }, 
+                    leaves: {
+                        label: {
+                            position: 'right',
+                            verticalAlign: 'middle',
+                            align: 'left'
+                        }
+                    },
+                    emphasis: {
+                        focus: 'descendant'
+                    },
+                    expandAndCollapse: true,
+                    animationDuration: 550,
+                    animationDurationUpdate: 750
+                }
             ]
             };
             chart.setOption(option);
