@@ -1,4 +1,3 @@
-use std::mem::MaybeUninit;
 use std::sync::{Mutex, Once};
 
 use clap::{Arg, Command};
@@ -112,7 +111,7 @@ async fn api_callgraph_json(mut req: Request<()>) -> tide::Result {
     }
 }
 
-async fn api_callgraph_html(mut req: Request<()>) -> tide::Result {
+async fn api_callgraph_html(req: Request<()>) -> tide::Result {
     let CallGraphRenderReq { function, depth } = req.query()?;
     let result = CONTEXT
         .lock()

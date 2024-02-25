@@ -165,8 +165,29 @@ impl CodeIndex {
             for cls in classes.iter() {
                 self.parse_class_declaration(*cls, &content);
             }
+            let funcs = walk_collect(tree.root_node(), "function_declaration");
+            for func in funcs.iter() {
+                self.parse_function_declaration(*func, &content);
+            }
         }
         Ok(())
+    }
+
+    fn parse_function_declaration<'a>(&mut self, node: Node<'a>, content: &String) {
+        let caller = str_by_field_name(node, "name", &content).unwrap();
+        let function = Function {
+            name: caller.clone(),
+            pkg: "".to_string(),
+            body: str_by_field_name(node, "body", &content).unwrap(),
+        };
+        self.add_function(&function);
+        let calls = walk_collect(node, "call_expression");
+        for call in calls {
+            if let Some(callee) = str_by_field_name(call, "function", &content) {
+                info!("{} -> {}", caller.clone(), callee);
+                self.add_edge(&caller, &callee);
+            }
+        }
     }
 
     fn parse_class_declaration<'a>(&mut self, node: Node<'a>, content: &String) {
