@@ -132,14 +132,10 @@ async fn api_callgraph_json(mut req: Request<()>) -> tide::Result {
 
 async fn api_callgraph_html(req: Request<()>) -> tide::Result {
     let CallGraphRenderReq { function, depth } = req.query()?;
-    let result = CONTEXT
-        .lock()
-        .unwrap()
-        .code_index
-        .serde_tree(&function, depth);
-
     let host = req.local_addr().unwrap();
-    let html_content = echart_tree_template().replace("${host}$", host);
+    let html_content = echart_tree_template()
+        .replace("${host}$", host)
+        .replace("${depth}$", &depth.to_string());
     let mut res = Response::new(StatusCode::Ok);
     res.set_body(html_content);
     res.set_content_type(tide::http::mime::HTML);
@@ -172,7 +168,7 @@ fn echart_tree_template() -> String {
                 document.getElementById('f20333b98be84c3497bdb4b930129314'), 'white', { renderer: 'canvas' });
     
             document.getElementById('dynamicSelect').addEventListener('change', function() {
-                draw_function_graph(this.value, 4); 
+                draw_function_graph(this.value, ${depth}$); 
             });
     
             function draw_function_graph(func, depth) {

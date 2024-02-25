@@ -213,7 +213,6 @@ impl CodeIndex {
         };
 
         if let Some(declaration) = substr(content, node.start_byte(), end_byte) {
-            info!("[class] {}", declaration);
             self.add_class(&Class {
                 name: clsname.clone(),
                 declaration: declaration,
