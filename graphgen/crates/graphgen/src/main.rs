@@ -52,6 +52,7 @@ async fn main() -> tide::Result<()> {
     app.at("/codeindex/parse/file").post(api_parse_file);
     app.at("/codeindex/load").post(api_load_codeindex);
     app.at("/callgraph/json").post(api_callgraph_json);
+    app.at("/codeindex/functions").get(api_function_list);
     app.at("/callgraph/html").get(api_callgraph_html);
     app.listen(addr).await?;
     Ok(())
@@ -85,6 +86,17 @@ async fn api_load_codeindex(mut req: Request<()>) -> tide::Result {
     Ok(json!({
         "code": 200,
         "message": "success",
+    })
+    .into())
+}
+
+async fn api_function_list(mut req: Request<()>) -> tide::Result {
+    let result = CONTEXT.lock().unwrap().code_index.function_list();
+
+    Ok(json!({
+        "code": 200,
+        "message": "success",
+        "data": result,
     })
     .into())
 }

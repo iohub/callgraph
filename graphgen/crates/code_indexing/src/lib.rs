@@ -99,6 +99,14 @@ impl CodeIndex {
         data
     }
 
+    pub fn function_list(&self) -> Vec<String> {
+        let mut result = vec![];
+        for k in self.functions.keys() {
+            result.push(k.clone())
+        }
+        result
+    }
+
     fn add_function(&mut self, func: &Function) {
         self.functions
             .entry(func.str())
