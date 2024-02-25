@@ -161,13 +161,17 @@ impl CodeIndex {
             .expect("Error loading TypeScript grammar");
 
         if let Some(tree) = parser.parse(&content, None) {
-            let classes = walk_collect(tree.root_node(), "class_declaration");
-            for cls in classes.iter() {
-                self.parse_class_declaration(*cls, &content);
-            }
-            let funcs = walk_collect(tree.root_node(), "function_declaration");
-            for func in funcs.iter() {
-                self.parse_function_declaration(*func, &content);
+            let mut queue = vec![tree.root_node()];
+            let mut cursor = tree.root_node().walk();
+            while let Some(node) = queue.pop() {
+                for child in node.children(&mut cursor) {
+                    match child.kind() {
+                        "class_declaration" => self.parse_class_declaration(child, &content),
+                        "function_declaration" => self.parse_function_declaration(child, &content),
+                        _ => {}
+                    }
+                    queue.push(child);
+                }
             }
         }
         Ok(())
