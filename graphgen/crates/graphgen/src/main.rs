@@ -1,14 +1,16 @@
-use std::sync::{Mutex, Once};
+use std::sync::Mutex;
 
 use clap::{Arg, Command};
 
 use code_indexing::CodeIndex;
 use env_logger;
+use http_types::headers::HeaderValue;
 use lazy_static::lazy_static;
 use log;
 use serde::Deserialize;
 use serde_json;
 use tide::prelude::*;
+use tide::security::{CorsMiddleware, Origin};
 use tide::{Request, Response, StatusCode};
 
 struct GlobalSingleton {
@@ -49,6 +51,11 @@ async fn main() -> tide::Result<()> {
     let addr = args.get_one::<String>("listen-addr").unwrap();
 
     let mut app = tide::new();
+    let cors = CorsMiddleware::new()
+        .allow_methods("GET, POST, OPTIONS".parse::<HeaderValue>().unwrap())
+        .allow_origin(Origin::from("*"))
+        .allow_credentials(false);
+    app.with(cors);
     app.at("/codeindex/parse/file").post(api_parse_file);
     app.at("/codeindex/load").post(api_load_codeindex);
     app.at("/callgraph/json").post(api_callgraph_json);
@@ -150,6 +157,7 @@ fn echart_tree_template() -> String {
     let template = r#"
     <!DOCTYPE html>
     <html>
+    
     <head>
         <meta charset="UTF-8">
         <title>CallGraph</title>
@@ -157,61 +165,118 @@ fn echart_tree_template() -> String {
     </head>
     
     <body>
-        <div id="f20333b98be84c3497bdb4b930129314" class="chart-container" style="width: 80vw; height:1000px; "></div>
+        <h2>Choose a function</h2>
+     
+        <select id="dynamicSelect" name="dynamicSelect">
+            <option value="">Select an option...</option>
+        </select>
+        <div id="f20333b98be84c3497bdb4b930129314" class="chart-container" style="width: 80vw; height: 1000px; "></div>
         <script>
             var chart = echarts.init(
                 document.getElementById('f20333b98be84c3497bdb4b930129314'), 'white', { renderer: 'canvas' });
-            var option = {
-                tooltip: {
-                    trigger: 'item',
-                    triggerOn: 'mousemove'
-                },
-            series: [
-                {
-                    type: 'tree',
-                    data: [${data}$],
-                    top: '1%',
-                    left: '7%',
-                    bottom: '1%',
-                    right: '20%',
-                    symbolSize: 7,
-                    label: {
-                        position: 'inside',
-                        verticalAlign: 'middle',
-                        align: 'center',
-                        formatter: function(params) { 
-                            return '{b|' + params.data.name + ' (' + params.data.value + ')' + '}';
-                        },
-                        fontSize: 16,
-                        rich: { 
-                            b: {
-                                backgroundColor: '#eee',
-                                width:  320,
-                                height:  32,
-                                align: 'center',
-                                borderRadius:  4,
-                                fontSize: 16,
-                                color: '#333'
-                            }
-                        }
+    
+            document.getElementById('dynamicSelect').addEventListener('change', function() {
+                draw_function_graph(this.value, 4); 
+            });
+    
+            function draw_function_graph(func, depth) {
+                const url = 'http://127.0.0.1:12800/callgraph/json';
+                const postData = {
+                    "function": func,
+                    "depth": depth
+                };
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
                     }, 
-                    leaves: {
-                        label: {
-                            position: 'right',
-                            verticalAlign: 'middle',
-                            align: 'left'
-                        }
-                    },
-                    emphasis: {
-                        focus: 'descendant'
-                    },
-                    expandAndCollapse: true,
-                    animationDuration: 550,
-                    animationDurationUpdate: 750
-                }
-            ]
-            };
-            chart.setOption(option);
+                    body: JSON.stringify(postData),
+                })
+                .then(response => response.json())
+                .then(resp => { 
+    
+                    var option = {
+                        tooltip: {
+                            trigger: 'item',
+                            triggerOn: 'mousemove'
+                        },
+                        series: [
+                            {
+                                type: 'tree',
+                                data: [ resp.data ], 
+                                top: '1%',
+                                left: '7%',
+                                bottom: '1%',
+                                right: '20%',
+                                symbolSize: 7,
+                                label: {
+                                    position: 'inside',
+                                    verticalAlign: 'middle',
+                                    align: 'center',
+                                    formatter: function(params) {
+                                        return  params.data.name + ' (' + params.data.value + ')' ; 
+                                        // return '{b|' + params.data.name + ' (' + params.data.value + ')' + '}';
+                                    },
+                                    fontSize: 16,
+                                    rich: { 
+                                        b: {
+                                            backgroundColor: '#eee',
+                                            width:  320,
+                                            height:  32,
+                                            align: 'center',
+                                            borderRadius:  4,
+                                            fontSize: 16,
+                                            color: '#333'
+                                        }
+                                    }
+                                }, 
+                                leaves: {
+                                    label: {
+                                        position: 'right',
+                                        verticalAlign: 'middle',
+                                        align: 'left'
+                                    }
+                                },
+                                emphasis: {
+                                    focus: 'descendant'
+                                },
+                                expandAndCollapse: true,
+                                animationDuration: 550,
+                                animationDurationUpdate: 750
+                            }
+                        ]
+                    };
+                    chart.setOption(option);
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+            }
+     
+            document.addEventListener('DOMContentLoaded', function() { 
+                const url = 'http://127.0.0.1:12800/codeindex/functions';
+                fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }, 
+                })
+                .then(response => response.json())
+                .then(resp => { 
+                    const selectElement = document.getElementById('dynamicSelect');
+                    selectElement.innerHTML = '';
+                    resp.data.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item;
+                        option.text = item;
+                        selectElement.appendChild(option);
+                    });
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+            });
+    
         </script>
     </body>
     
