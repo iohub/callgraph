@@ -80,6 +80,7 @@ pub struct CodeIndex {
     edges: BTreeMap<u64, Vec<u64>>,
     functions: BTreeMap<String, Function>,
     classes: BTreeMap<String, Class>,
+    skip_dirs: Vec<String>,
     pub(crate) id_gen: IDGenerator,
 }
 
@@ -89,6 +90,7 @@ impl CodeIndex {
             edges: BTreeMap::new(),
             functions: BTreeMap::new(),
             classes: BTreeMap::new(),
+            skip_dirs: vec!["node_modules".to_string(), ".pnpm".to_string()],
             id_gen: IDGenerator::new(),
         }
     }
@@ -170,8 +172,11 @@ impl CodeIndex {
         for entry in entries {
             match entry {
                 Ok(path) => {
-                    if let Err(e) = self.parse_file(&path.display().to_string()) {
-                        error!("parse_file error {:?}", e);
+                    let path_str = path.display().to_string();
+                    if !self.skip_dirs.iter().any(|s| path_str.contains(s)) {
+                        if let Err(e) = self.parse_file(&path_str) {
+                            error!("parse_file error {:?}", e);
+                        }
                     }
                 }
                 Err(e) => {
