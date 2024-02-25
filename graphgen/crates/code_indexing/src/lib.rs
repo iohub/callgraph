@@ -275,7 +275,7 @@ mod tests {
     fn test_parse() {
         env_logger::init();
         let mut indexing = CodeIndex::new();
-        let res = indexing.parse_file(&"../../tests/test0.ts".to_string());
+        let res = indexing.parse_file(&"../../tests/test0.txt".to_string());
         assert!(res.is_ok());
         assert!(indexing.classes.get("Parser").is_some());
     }
@@ -283,7 +283,7 @@ mod tests {
     #[test]
     fn test_load() {
         let mut indexing = CodeIndex::new();
-        let res = indexing.parse_file(&"../../tests/test0.ts".to_string());
+        let res = indexing.parse_file(&"../../tests/test0.txt".to_string());
         assert!(res.is_ok());
         let datafile = "/tmp/code_index.bin".to_string();
         indexing.into_file(&datafile);
