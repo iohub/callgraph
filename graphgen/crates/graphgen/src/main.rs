@@ -39,6 +39,11 @@ struct CallGraphRenderReq {
     depth: i32,
 }
 
+#[derive(Debug, Deserialize)]
+struct CallGraphHtmlReq {
+    depth: i32,
+}
+
 #[async_std::main]
 async fn main() -> tide::Result<()> {
     env_logger::init();
@@ -130,7 +135,7 @@ async fn api_callgraph_json(mut req: Request<()>) -> tide::Result {
 }
 
 async fn api_callgraph_html(req: Request<()>) -> tide::Result {
-    let CallGraphRenderReq { function, depth } = req.query()?;
+    let CallGraphHtmlReq { depth } = req.query()?;
     let host = req.local_addr().unwrap();
     let html_content = echart_tree_template()
         .replace("${host}$", host)
