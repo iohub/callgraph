@@ -138,12 +138,8 @@ async fn api_callgraph_html(req: Request<()>) -> tide::Result {
         .code_index
         .serde_tree(&function, depth);
 
-    let data = match result {
-        Some(graph) => serde_json::to_string(&graph).unwrap_or("{}".to_string()),
-        None => "{}".to_string(),
-    };
-
-    let html_content = echart_tree_template().replace("${data}$", &data);
+    let host = req.local_addr().unwrap();
+    let html_content = echart_tree_template().replace("${host}$", host);
     let mut res = Response::new(StatusCode::Ok);
     res.set_body(html_content);
     res.set_content_type(tide::http::mime::HTML);
@@ -180,7 +176,7 @@ fn echart_tree_template() -> String {
             });
     
             function draw_function_graph(func, depth) {
-                const url = 'http://127.0.0.1:12800/callgraph/json';
+                const url = 'http://${host}$/callgraph/json';
                 const postData = {
                     "function": func,
                     "depth": depth
@@ -254,7 +250,7 @@ fn echart_tree_template() -> String {
             }
      
             document.addEventListener('DOMContentLoaded', function() { 
-                const url = 'http://127.0.0.1:12800/codeindex/functions';
+                const url = 'http://${host}$/codeindex/functions';
                 fetch(url, {
                     method: 'GET',
                     headers: {
