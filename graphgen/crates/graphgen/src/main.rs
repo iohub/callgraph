@@ -5,7 +5,7 @@ use code_indexing::CodeIndex;
 use env_logger;
 use http_types::headers::HeaderValue;
 use lazy_static::lazy_static;
-use log;
+use log::{error, info};
 use serde::Deserialize;
 
 use tide::prelude::*;
@@ -50,9 +50,20 @@ async fn main() -> tide::Result<()> {
 
     let args = Command::new("graphgen")
         .arg(Arg::new("listen-addr").long("listen-addr"))
+        .arg(Arg::new("project-dir").long("project-dir"))
         .get_matches();
 
     let addr = args.get_one::<String>("listen-addr").unwrap();
+    let project_dir = args.get_one::<String>("project-dir").unwrap();
+
+    if let Err(e) = CONTEXT
+        .lock()
+        .unwrap()
+        .code_index
+        .parse_project(project_dir)
+    {
+        error!("parse_project error {}", e);
+    }
 
     let mut app = tide::new();
     let cors = CorsMiddleware::new()

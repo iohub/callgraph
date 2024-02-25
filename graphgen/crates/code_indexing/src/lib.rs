@@ -4,9 +4,11 @@ mod misc;
 extern crate serde;
 
 use bincode;
+use glob::glob;
 use graph::*;
-use log::info;
+use log::{error, info, warn};
 use misc::*;
+
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::io::prelude::*;
@@ -161,6 +163,26 @@ impl CodeIndex {
         bincode::serialize_into(file, self).unwrap();
     }
 
+    pub fn parse_project(&mut self, dir: &String) -> Result<(), std::io::Error> {
+        // TODO: supports more languages.
+        let pattern = format!("{}/**/*.ts", dir);
+        let entries = glob(&pattern).expect("Failed to read glob pattern");
+        for entry in entries {
+            match entry {
+                Ok(path) => {
+                    if let Err(e) = self.parse_file(&path.display().to_string()) {
+                        error!("parse_file error {:?}", e);
+                    }
+                }
+                Err(e) => {
+                    error!("Read glob error {:?}", e);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn parse_file(&mut self, filename: &String) -> Result<(), std::io::Error> {
         let content = std::fs::read_to_string(filename)?;
         let mut parser = Parser::new();
@@ -168,6 +190,7 @@ impl CodeIndex {
             .set_language(tree_sitter_typescript::language_typescript())
             .expect("Error loading TypeScript grammar");
 
+        info!("parsing {}", filename);
         if let Some(tree) = parser.parse(&content, None) {
             let mut queue = vec![tree.root_node()];
             let mut cursor = tree.root_node().walk();

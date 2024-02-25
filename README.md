@@ -5,7 +5,7 @@
 1. run graphgen on your project source directory.
 
 ```shell
-graphgen --listen-addr 127.0.0.1:12800
+graphgen --listen-addr 127.0.0.1:12800 --project-dir /home/do/ws/collama
 ```
 
 2. open `http://127.0.0.1:12800/callgraph/html?depth=4` 
