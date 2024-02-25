@@ -1,14 +1,13 @@
 use std::sync::Mutex;
 
 use clap::{Arg, Command};
-
 use code_indexing::CodeIndex;
 use env_logger;
 use http_types::headers::HeaderValue;
 use lazy_static::lazy_static;
 use log;
 use serde::Deserialize;
-use serde_json;
+
 use tide::prelude::*;
 use tide::security::{CorsMiddleware, Origin};
 use tide::{Request, Response, StatusCode};
@@ -97,7 +96,7 @@ async fn api_load_codeindex(mut req: Request<()>) -> tide::Result {
     .into())
 }
 
-async fn api_function_list(mut req: Request<()>) -> tide::Result {
+async fn api_function_list(req: Request<()>) -> tide::Result {
     let result = CONTEXT.lock().unwrap().code_index.function_list();
 
     Ok(json!({
@@ -159,7 +158,7 @@ fn echart_tree_template() -> String {
     <body>
         <h2>Choose a function</h2>
      
-        <select id="dynamicSelect" name="dynamicSelect">
+        <select id="dynamicSelect" name="dynamicSelect" class="styled-select">
             <option value="">Select an option...</option>
         </select>
         <div id="f20333b98be84c3497bdb4b930129314" class="chart-container" style="width: 80vw; height: 1000px; "></div>
@@ -271,6 +270,23 @@ fn echart_tree_template() -> String {
     
         </script>
     </body>
+
+    <style>
+    .styled-select {
+        width:  30%;
+        padding:  10px;
+        border: none;
+        border-radius:  5px;
+        background-color: #fff;
+        box-shadow:  0  4px  8px  0 rgba(0,0,0,0.2),  0  6px  20px  0 rgba(0,0,0,0.19); /* Shadow effect */
+        font-size:  16px;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        color: #860606;
+    }
+    
+    </style>    
     
     </html>
 
