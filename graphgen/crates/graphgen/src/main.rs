@@ -1,6 +1,7 @@
 use std::sync::Mutex;
 
 use clap::{Arg, Command};
+use code_indexing::graph::GraphNode;
 use code_indexing::CodeIndex;
 use env_logger;
 use http_types::headers::HeaderValue;
@@ -20,6 +21,54 @@ lazy_static! {
     static ref CONTEXT: Mutex<GlobalSingleton> = Mutex::new(GlobalSingleton {
         code_index: CodeIndex::new(),
     });
+}
+
+struct GraphvizHelper {
+    node_str: String,
+    link_str: String,
+    id: u32,
+}
+
+impl GraphvizHelper {
+    fn new() -> Self {
+        GraphvizHelper {
+            node_str: String::with_capacity(100),
+            link_str: String::with_capacity(200),
+            id: 1,
+        }
+    }
+
+    fn next_id(&mut self) -> u32 {
+        self.id += 1;
+        self.id - 1
+    }
+
+    fn dot(&mut self, node: &GraphNode) -> String {
+        self.do_parse(node);
+        format!(
+            r#"
+            digraph {{
+            graph [labelloc="t", fontsize="20.0" tooltip=" "]
+            {}
+            {}
+        }}"#,
+            self.node_str, self.link_str
+        )
+    }
+
+    fn do_parse(&mut self, node: &GraphNode) {
+        let id = self.next_id();
+        self.node_str.push_str(&format!(
+            "{} [id=\"{id}\" label=\"{}\"]\n",
+            node.name, node.name
+        ));
+        for child in node.children.iter() {
+            let id = self.next_id();
+            self.link_str
+                .push_str(&format!("{} -> {} [id=\"{id}\"]\n", node.name, child.name));
+            self.do_parse(child);
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -71,9 +120,11 @@ async fn main() -> tide::Result<()> {
         .allow_origin(Origin::from("*"))
         .allow_credentials(false);
     app.with(cors);
+
     app.at("/codeindex/parse/file").post(api_parse_file);
     app.at("/codeindex/load").post(api_load_codeindex);
     app.at("/callgraph/json").post(api_callgraph_json);
+    app.at("/callgraph/dot").get(api_callgraph_dot);
     app.at("/codeindex/functions").get(api_function_list);
     app.at("/callgraph/html").get(api_callgraph_html);
     app.listen(addr).await?;
@@ -143,6 +194,29 @@ async fn api_callgraph_json(mut req: Request<()>) -> tide::Result {
         })
         .into()),
     }
+}
+
+async fn api_callgraph_dot(mut req: Request<()>) -> tide::Result {
+    let CallGraphRenderReq { function, depth } = req.query()?;
+    let result = CONTEXT
+        .lock()
+        .unwrap()
+        .code_index
+        .serde_tree(&function, depth);
+    if result.is_none() {
+        return Ok(json!({
+            "code": 300,
+            "message": "no graph generated"
+        })
+        .into());
+    }
+
+    Ok(json!({
+        "code": 200,
+        "message": "success",
+        "data": GraphvizHelper::new().dot(&result.unwrap()),
+    })
+    .into())
 }
 
 async fn api_callgraph_html(req: Request<()>) -> tide::Result {

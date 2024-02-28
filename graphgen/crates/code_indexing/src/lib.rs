@@ -1,4 +1,4 @@
-mod graph;
+pub mod graph;
 mod misc;
 
 extern crate serde;
