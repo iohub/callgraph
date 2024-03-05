@@ -23,54 +23,6 @@ lazy_static! {
     });
 }
 
-struct GraphvizHelper {
-    node_str: String,
-    link_str: String,
-    id: u32,
-}
-
-impl GraphvizHelper {
-    fn new() -> Self {
-        GraphvizHelper {
-            node_str: String::with_capacity(100),
-            link_str: String::with_capacity(200),
-            id: 1,
-        }
-    }
-
-    fn next_id(&mut self) -> u32 {
-        self.id += 1;
-        self.id - 1
-    }
-
-    fn dot(&mut self, node: &GraphNode) -> String {
-        self.do_parse(node);
-        format!(
-            r#"
-            digraph {{
-            graph [labelloc="t", fontsize="20.0" tooltip=" "]
-            {}
-            {}
-        }}"#,
-            self.node_str, self.link_str
-        )
-    }
-
-    fn do_parse(&mut self, node: &GraphNode) {
-        let id = self.next_id();
-        self.node_str.push_str(&format!(
-            "{} [id=\"{id}\" label=\"{}\"]\n",
-            node.name, node.name
-        ));
-        for child in node.children.iter() {
-            let id = self.next_id();
-            self.link_str
-                .push_str(&format!("{} -> {} [id=\"{id}\"]\n", node.name, child.name));
-            self.do_parse(child);
-        }
-    }
-}
-
 #[derive(Debug, Deserialize)]
 struct ParseFileReq {
     file: String,
@@ -124,7 +76,6 @@ async fn main() -> tide::Result<()> {
     app.at("/codeindex/parse/file").post(api_parse_file);
     app.at("/codeindex/load").post(api_load_codeindex);
     app.at("/callgraph/json").post(api_callgraph_json);
-    app.at("/callgraph/dot").get(api_callgraph_dot);
     app.at("/codeindex/functions").get(api_function_list);
     app.at("/callgraph/html").get(api_callgraph_html);
     app.listen(addr).await?;
@@ -196,29 +147,6 @@ async fn api_callgraph_json(mut req: Request<()>) -> tide::Result {
     }
 }
 
-async fn api_callgraph_dot(mut req: Request<()>) -> tide::Result {
-    let CallGraphRenderReq { function, depth } = req.query()?;
-    let result = CONTEXT
-        .lock()
-        .unwrap()
-        .code_index
-        .serde_tree(&function, depth);
-    if result.is_none() {
-        return Ok(json!({
-            "code": 300,
-            "message": "no graph generated"
-        })
-        .into());
-    }
-
-    Ok(json!({
-        "code": 200,
-        "message": "success",
-        "data": GraphvizHelper::new().dot(&result.unwrap()),
-    })
-    .into())
-}
-
 async fn api_callgraph_html(req: Request<()>) -> tide::Result {
     let CallGraphHtmlReq { depth } = req.query()?;
     let host = req.local_addr().unwrap();
@@ -247,7 +175,7 @@ fn echart_tree_template() -> String {
     
     <body>
         <h2>Choose a function</h2>
-     
+        <input type="text" id="keywordInput" placeholder="Type to filter...">
         <select id="dynamicSelect" name="dynamicSelect" class="styled-select">
             <option value="">Select an option...</option>
         </select>
@@ -356,27 +284,25 @@ fn echart_tree_template() -> String {
                 .catch((error) => {
                     console.error('Error:', error);
                 });
+                const keywordInput = document.getElementById('keywordInput');
+                const optionsSelect = document.getElementById('dynamicSelect');
+                keywordInput.addEventListener('input', function() {
+                    const keyword = keywordInput.value.toLowerCase();
+                    const options = optionsSelect.options;
+                    for (let i = 0; i < options.length; i++) {
+                        const option = options[i];
+                        const optionText = option.text.toLowerCase();
+                        if (optionText.includes(keyword)) {
+                            option.style.display = '';
+                        } else {
+                            option.style.display = 'none';
+                        }
+                    }
+                });
             });
     
         </script>
-    </body>
-
-    <style>
-    .styled-select {
-        width:  30%;
-        padding:  10px;
-        border: none;
-        border-radius:  5px;
-        background-color: #fff;
-        box-shadow:  0  4px  8px  0 rgba(0,0,0,0.2),  0  6px  20px  0 rgba(0,0,0,0.19); /* Shadow effect */
-        font-size:  16px;
-        appearance: none;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        color: #860606;
-    }
-    
-    </style>    
+    </body> 
     
     </html>
 
